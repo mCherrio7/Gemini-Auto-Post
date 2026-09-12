@@ -4,7 +4,7 @@ from crewai import Agent, Crew, Process, Task, LLM
 from crewai_tools import SerperDevTool
 from google import genai
 
-# 1. Setup tools and connect to the upgraded Gemini 3.6 engine
+# 1. Setup global configurations and connect to the upgraded Gemini 3.6 engine
 search_tool = SerperDevTool()
 gemini_model = LLM(
     model="gemini/gemini-3.6-flash",
@@ -73,28 +73,37 @@ result = content_crew.kickoff()
 
 output_text = str(result)
 
-# 4. Image Generation Execution Block (Imagen 3)
-print("\n🎨 Calling Imagen 3 to construct matching high-attention visual...\n")
+# 4. Corrected Image Generation Execution Block (Developer Mode Compatible)
+print("\n🎨 Generating matching high-attention visual using Developer-Safe Image model...\n")
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 try:
-    image_result = client.models.generate_images(
-        model='imagen-3.0-generate-002',
-        prompt=f"A high-quality, eye-catching, cinematic social media graphic depicting: {output_text}. Photorealistic, vibrant lighting, ultra-detailed, no text words or letters.",
-        config=dict(
-            number_of_images=1,
-            output_mime_type="image/jpeg",
-            aspect_ratio="1:1"
-        )
+    # Uses the developer-accessible multimodal endpoint to safely generate raw visual content blocks
+    image_result = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[
+            f"Generate a high-quality, eye-catching, cinematic, 1:1 aspect ratio square graphic depicting: {output_text}. "
+            f"Photorealistic, vibrant lighting, ultra-detailed, strictly no text, words, letters, or numbers inside the image."
+        ]
     )
 
-    for generated_image in image_result.generated_images:
-        with open("post_image.jpg", "wb") as f:
-            f.write(generated_image.image.image_bytes)
-    print("✅ Image generated successfully and saved as 'post_image.jpg'!")
+    # Scans the response payload for inline binary image blocks and saves them locally
+    image_saved = False
+    for part in image_result.parts:
+        if part.inline_data is not None:
+            image = part.as_image()
+            image.save("post_image.jpg")
+            image_saved = True
+            print("✅ Image generated successfully and saved as 'post_image.jpg'!")
+            break
+            
+    if not image_saved:
+        print("⚠️ Model did not return an image part. Moving forward with text only.")
+        
 except Exception as e:
     print(f"⚠️ Image generation failed: {e}. Moving forward with text only.")
 
+# Save text caption output to folder
 with open("social_media_posts.txt", "w", encoding="utf-8") as file:
     file.write(output_text)
 
