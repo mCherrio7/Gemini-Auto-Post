@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import base64
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai_tools import SerperDevTool
 
@@ -73,27 +74,33 @@ result = content_crew.kickoff()
 
 output_text = str(result)
 
-# 4. Direct Developer API Request to Imagen 3 (Guarantees Image File Creation)
-print("\n🎨 Sending direct developer request to Imagen 3 for visual construction...\n")
+# 4. Corrected Direct Prediction Request to Imagen 3 (Bypasses 404 block)
+print("\n🎨 Sending optimized prediction request to Imagen 3 for visual construction...\n")
 api_key = os.getenv("GEMINI_API_KEY")
-imagen_url = f"https://googleapis.com"
+imagen_url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict"
 params = {"key": api_key}
 
 headers = {"Content-Type": "application/json"}
+# Google's updated structural payload wrapper layout format
 payload = {
-    "prompt": f"A high-quality, eye-catching, cinematic social media graphic. Photorealistic, vibrant lighting, ultra-detailed, square 1:1 aspect ratio, strictly no text, words, letters, or typos. Topic theme: {output_text}",
-    "numberOfImages": 1,
-    "outputMimeType": "image/jpeg",
-    "aspectRatio": "1:1"
+    "instances": [
+        {
+            "prompt": f"A high-quality, eye-catching, cinematic social media graphic. Photorealistic, vibrant lighting, ultra-detailed, square 1:1 aspect ratio, strictly no text, words, letters, or typos. Theme: {output_text}"
+        }
+    ],
+    "parameters": {
+        "sampleCount": 1,
+        "aspectRatio": "1:1",
+        "outputMimeType": "image/jpeg"
+    }
 }
 
 try:
     response = requests.post(imagen_url, headers=headers, params=params, data=json.dumps(payload))
     if response.status_code == 200:
-        import base64
         response_data = response.json()
-        # Extract the raw image base64 bytes directly from the developer response
-        base64_image_data = response_data["generatedImages"][0]["image"]["imageBytes"]
+        # Decodes the updated predictions byte block structure
+        base64_image_data = response_data["predictions"][0]["bytesBase64Encoded"]
         image_bytes = base64.b64decode(base64_image_data)
         
         with open("post_image.jpg", "wb") as f:
