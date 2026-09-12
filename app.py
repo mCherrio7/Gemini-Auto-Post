@@ -1,10 +1,10 @@
 import os
 import requests
+import json
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai_tools import SerperDevTool
-from google import genai
 
-# 1. Setup global configurations and connect to the upgraded Gemini 3.6 engine
+# 1. Setup tools and connect to the upgraded Gemini 3.6 engine
 search_tool = SerperDevTool()
 gemini_model = LLM(
     model="gemini/gemini-3.6-flash",
@@ -73,35 +73,35 @@ result = content_crew.kickoff()
 
 output_text = str(result)
 
-# 4. Corrected Image Generation Execution Block (Developer Mode Compatible)
-print("\n🎨 Generating matching high-attention visual using Developer-Safe Image model...\n")
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# 4. Direct Developer API Request to Imagen 3 (Guarantees Image File Creation)
+print("\n🎨 Sending direct developer request to Imagen 3 for visual construction...\n")
+api_key = os.getenv("GEMINI_API_KEY")
+imagen_url = f"https://googleapis.com{api_key}"
+
+headers = {"Content-Type": "application/json"}
+payload = {
+    "prompt": f"A high-quality, eye-catching, cinematic social media graphic. Photorealistic, vibrant lighting, ultra-detailed, square 1:1 aspect ratio, strictly no text, words, letters, or typos. Topic theme: {output_text}",
+    "numberOfImages": 1,
+    "outputMimeType": "image/jpeg",
+    "aspectRatio": "1:1"
+}
 
 try:
-    # Uses the developer-accessible multimodal endpoint to safely generate raw visual content blocks
-    image_result = client.models.generate_content(
-        model="gemini-3.6-flash",
-        contents=[
-            f"Generate a high-quality, eye-catching, cinematic, 1:1 aspect ratio square graphic depicting: {output_text}. "
-            f"Photorealistic, vibrant lighting, ultra-detailed, strictly no text, words, letters, or numbers inside the image."
-        ]
-    )
-
-    # Scans the response payload for inline binary image blocks and saves them locally
-    image_saved = False
-    for part in image_result.parts:
-        if part.inline_data is not None:
-            image = part.as_image()
-            image.save("post_image.jpg")
-            image_saved = True
-            print("✅ Image generated successfully and saved as 'post_image.jpg'!")
-            break
-            
-    if not image_saved:
-        print("⚠️ Model did not return an image part. Moving forward with text only.")
+    response = requests.post(imagen_url, headers=headers, data=json.dumps(payload))
+    if response.status_code == 200:
+        import base64
+        response_data = response.json()
+        # Extract the raw image base64 bytes directly from the developer response
+        base64_image_data = response_data["generatedImages"][0]["image"]["imageBytes"]
+        image_bytes = base64.b64decode(base64_image_data)
         
+        with open("post_image.jpg", "wb") as f:
+            f.write(image_bytes)
+        print("✅ Image generated successfully via Imagen 3 API and saved as 'post_image.jpg'!")
+    else:
+        print(f"⚠️ Imagen API returned an error code: {response.status_code} - {response.text}")
 except Exception as e:
-    print(f"⚠️ Image generation failed: {e}. Moving forward with text only.")
+    print(f"⚠️ Image request failed: {e}. Moving forward with text only.")
 
 # Save text caption output to folder
 with open("social_media_posts.txt", "w", encoding="utf-8") as file:
