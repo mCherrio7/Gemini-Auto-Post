@@ -9,22 +9,33 @@ jobs:
   run-agents:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write # CRITICAL: Grants the server secure admin permission to push updated images back to your repo
+
     steps:
     - name: Checkout repository code
-      uses: actions/checkout@v4.2.2 # Upgraded to support modern Node 24 runners cleanly
+      uses: actions/checkout@v4.2.2
 
     - name: Install uv (Python Package Manager)
-      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # Locked to the official secure release hash
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
 
     - name: Set up Python sandbox environment
       run: uv venv --python 3.12
 
     - name: Install software dependencies
-      run: uv pip install -r requirements.txt # Runs cleanly through uv directly (No manual path activation required!)
+      run: uv pip install -r requirements.txt
 
     - name: Execute AI Crew and Broadcast Posts
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
         WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
-      run: uv run python app.py # Uses uv's native runner to execute the code with absolute admin permissions
+      run: uv run python app.py
+
+    - name: Commit and Save Fresh Image to Repo
+      run: |
+        git config --global user.name "GitHub Action Bot"
+        git config --global user.email "actions@github.com"
+        git add post_image.jpg social_media_posts.txt
+        git commit -m "Automated Sync: Save fresh daily AI news assets" || echo "No changes to commit"
+        git push origin main
