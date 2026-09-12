@@ -1,0 +1,36 @@
+name: Run Daily AI Posting Agent
+
+on:
+  schedule:
+    - cron: '0 13 * * *' # Fires automatically every single day at 9:00 AM EST (13:00 UTC)
+  workflow_dispatch: # Allows manual button click triggering anytime
+
+jobs:
+  run-agents:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    - name: Install uv (Python Package Manager)
+      uses: astral-sh/uv-action@v2
+      with:
+        version: "latest"
+
+    - name: Set up Python sandbox environment
+      run: uv venv --python 3.12
+
+    - name: Install software dependencies
+      run: |
+        .venv/bin/activate
+        uv pip install -r requirements.txt
+
+    - name: Execute AI Crew and Broadcast Posts
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+        WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+      run: |
+        source .venv/bin/activate
+        python app.py
