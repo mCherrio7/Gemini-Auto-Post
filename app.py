@@ -32,7 +32,7 @@ designer = Agent(
 
 publisher = Agent(
     role="Social Media Publisher",
-    goal="Take an expanded news update and shrink it down into a short description under 500 characters total.",
+    goal="Take an expanded news update and shrink it down into a short description under 300 characters total.",
     backstory="A strict editor who deletes long background paragraphs to make text perfect for Instagram limits.",
     llm=gemini_model,
     verbose=True
@@ -60,10 +60,10 @@ publish_task = Task(
     description=(
         "Look at the text provided by the previous agents. Extract ONLY the Instagram caption part.\n"
         "Rewrite it to be extremely short, clean, and punchy.\n"
-        "CRITICAL RULE: The final output must be pure copy text, containing a total of fewer than 500 characters. "
+        "CRITICAL RULE: The final output must be pure copy text under 300 characters total. "
         "Do not write anything else. No technical notes, no explanations, no labels."
     ),
-    expected_output="A single short copy caption under 500 characters with no labels or extra text.",
+    expected_output="A single short copy caption under 300 characters with no labels or extra text.",
     agent=publisher
 )
 
@@ -77,8 +77,11 @@ content_crew = Crew(
 print("\n🚀 3 Agents are launching! Running the pipeline autonomously...\n")
 crew_output = content_crew.kickoff()
 
-# Extract ONLY the final output of the last task (the short caption)
-final_instagram_caption = content_crew.tasks[-1].output.raw.strip()
+# Force extraction from the raw final task block string
+raw_designer_text = str(content_crew.tasks[-1].output.raw).strip()
+
+# HARDCODE FIX: Forcefully slice the text array so it is physically impossible to exceed Meta's limit
+clean_short_caption = raw_designer_text[:400]
 
 # 4. Native Interactions API Image Call (Nano Banana)
 print("\n🎨 Initializing native Interactions API to generate the post graphic...\n")
@@ -86,7 +89,7 @@ try:
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     interaction = client.models.generate_content(
         model="gemini-3.1-flash-image",
-        contents=f"Create a high-quality, eye-catching, cinematic, 1:1 aspect ratio square social media graphic depicting: {str(crew_output)}. Photorealistic, vibrant color layout, ultra-detailed, strictly no text words or letters."
+        contents=f"Create a high-quality, eye-catching, cinematic, 1:1 aspect ratio square social media graphic depicting: {clean_short_caption}. Photorealistic, vibrant color layout, ultra-detailed, strictly no text words or letters."
     )
     
     image_saved = False
@@ -108,13 +111,13 @@ except Exception as e:
 
 # Save text caption output to folder directory
 with open("social_media_posts.txt", "w", encoding="utf-8") as file:
-    file.write(final_instagram_caption)
+    file.write(clean_short_caption)
 
 # 5. Route Payload out to Automation Bridge (Make/n8n)
 webhook_url = os.getenv("WEBHOOK_URL")
 if webhook_url:
     print("\n📦 Pushing data to your automated Instagram posting bridge...")
-    payload = {"caption": final_instagram_caption, "image_status": "Ready in repository"}
+    payload = {"caption": clean_short_caption, "image_status": "Ready in repository"}
     try:
         response = requests.post(webhook_url, json=payload)
         print(f"📡 Bridge Response Status: {response.status_code}")
