@@ -74,40 +74,49 @@ result = content_crew.kickoff()
 
 output_text = str(result)
 
-# 4. Corrected Direct Prediction Request to Imagen 3 (Bypasses 404 block)
-print("\n🎨 Sending optimized prediction request to Imagen 3 for visual construction...\n")
+# 4. Developer-Tier Safe Image Generation (Using gemini-2.5-flash-image)
+print("\n🎨 Sending request to image generation engine for visual construction...\n")
 api_key = os.getenv("GEMINI_API_KEY")
-imagen_url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict"
+image_endpoint = f"https://googleapis.com"
 params = {"key": api_key}
 
 headers = {"Content-Type": "application/json"}
-# Google's updated structural payload wrapper layout format
 payload = {
-    "instances": [
+    "contents": [
         {
-            "prompt": f"A high-quality, eye-catching, cinematic social media graphic. Photorealistic, vibrant lighting, ultra-detailed, square 1:1 aspect ratio, strictly no text, words, letters, or typos. Theme: {output_text}"
+            "parts": [
+                {
+                    "text": f"Generate a high-quality, eye-catching, cinematic social media graphic. Photorealistic, vibrant lighting, ultra-detailed, square 1:1 aspect ratio, strictly no text, words, letters, or typos. Theme: {output_text}"
+                }
+            ]
         }
-    ],
-    "parameters": {
-        "sampleCount": 1,
-        "aspectRatio": "1:1",
-        "outputMimeType": "image/jpeg"
-    }
+    ]
 }
 
 try:
-    response = requests.post(imagen_url, headers=headers, params=params, data=json.dumps(payload))
+    response = requests.post(image_endpoint, headers=headers, params=params, data=json.dumps(payload))
     if response.status_code == 200:
         response_data = response.json()
-        # Decodes the updated predictions byte block structure
-        base64_image_data = response_data["predictions"][0]["bytesBase64Encoded"]
-        image_bytes = base64.b64decode(base64_image_data)
         
-        with open("post_image.jpg", "wb") as f:
-            f.write(image_bytes)
-        print("✅ Image generated successfully via Imagen 3 API and saved as 'post_image.jpg'!")
+        # Scans the modern content blocks for the inline binary image data
+        image_saved = False
+        parts = response_data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+        
+        for part in parts:
+            if "inlineData" in part and "image/" in part["inlineData"].get("mimeType", ""):
+                base64_image_data = part["inlineData"]["data"]
+                image_bytes = base64.b64decode(base64_image_data)
+                
+                with open("post_image.jpg", "wb") as f:
+                    f.write(image_bytes)
+                print("✅ Image generated successfully and saved as 'post_image.jpg'!")
+                image_saved = True
+                break
+                
+        if not image_saved:
+            print("⚠️ Endpoint returned text instead of image bytes. Moving forward with text only.")
     else:
-        print(f"⚠️ Imagen API returned an error code: {response.status_code} - {response.text}")
+        print(f"⚠️ Image generation endpoint returned an error code: {response.status_code} - {response.text}")
 except Exception as e:
     print(f"⚠️ Image request failed: {e}. Moving forward with text only.")
 
