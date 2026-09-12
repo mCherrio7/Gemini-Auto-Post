@@ -1,11 +1,11 @@
 import os
 import requests
-import json
 import base64
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai_tools import SerperDevTool
+from google import genai
 
-# 1. Setup tools and connect to the upgraded Gemini 3.6 text engine
+# 1. Setup tools and connect to the upgraded Gemini 3.6 engine
 search_tool = SerperDevTool()
 gemini_model = LLM(
     model="gemini/gemini-3.6-flash",
@@ -50,9 +50,9 @@ design_task = Task(
         "Using the research provided, create high-quality social media content.\n"
         "Generate:\n"
         "1. An Instagram caption containing an intense hook, a short summary line, clean bullet points, and 4 specific hashtags.\n"
-        "2. A descriptive, highly detailed prompt for an AI image generator that visually symbolizes this news story (no text/words in the image)."
+        "2. A short, vivid description of a single cinematic image summarizing this news story (no text/words/letters in the image)."
     ),
-    expected_output="An Instagram caption and an image generator prompt written in plain text.",
+    expected_output="An Instagram caption and a visual summary description written in plain text.",
     agent=designer
 )
 
@@ -74,54 +74,38 @@ result = content_crew.kickoff()
 
 output_text = str(result)
 
-# 4. Upgraded Image Generation Engine (Using gemini-3.1-flash-image)
-print("\n🎨 Sending request to modern image generation engine for visual construction...\n")
-api_key = os.getenv("GEMINI_API_KEY")
-image_endpoint = f"https://googleapis.com"
-params = {"key": api_key}
-
-headers = {"Content-Type": "application/json"}
-payload = {
-    "contents": [
-        {
-            "parts": [
-                {
-                    "text": f"Generate a high-quality, eye-catching, cinematic social media graphic. Photorealistic, vibrant lighting, ultra-detailed, square 1:1 aspect ratio, strictly no text, words, letters, or typos. Theme: {output_text}"
-                }
-            ]
-        }
-    ]
-}
-
+# 4. From-Scratch Rebuild: Official Native Interactions API Image Call (Bypasses all 404 blocks)
+print("\n🎨 Initializing native Interactions API to generate the post graphic...\n")
 try:
-    response = requests.post(image_endpoint, headers=headers, params=params, data=json.dumps(payload))
-    if response.status_code == 200:
-        response_data = response.json()
-        
-        # Parse the modern content blocks for the inline binary image data
-        image_saved = False
-        candidates = response_data.get("candidates", [{}])
-        parts = candidates[0].get("content", {}).get("parts", [])
-        
-        for part in parts:
-            if "inlineData" in part and "image/" in part["inlineData"].get("mimeType", ""):
-                base64_image_data = part["inlineData"]["data"]
-                image_bytes = base64.b64decode(base64_image_data)
-                
+    # Initializes the clean Google GenAI Client with your existing environment variable key
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    # Executes the strict native format required for modern Gemini 3.1 image generation
+    interaction = client.models.generate_content(
+        model="gemini-3.1-flash-image",
+        contents=f"Create a high-quality, eye-catching, cinematic, 1:1 aspect ratio square social media graphic depicting: {output_text}. Photorealistic, vibrant color layout, ultra-detailed, strictly no text words or letters."
+    )
+    
+    # Scans the response candidates structure for the raw inline image parts
+    image_saved = False
+    if interaction.candidates and interaction.candidates[0].content.parts:
+        for part in interaction.candidates[0].content.parts:
+            # Detects if Google returned an active native inline image block
+            if part.inline_data and "image" in part.inline_data.mime_type:
+                image_bytes = base64.b64decode(part.inline_data.data)
                 with open("post_image.jpg", "wb") as f:
                     f.write(image_bytes)
-                print("✅ Image generated successfully and saved as 'post_image.jpg'!")
+                print("✅ Success! Image generated natively and saved as 'post_image.jpg'!")
                 image_saved = True
                 break
                 
-        if not image_saved:
-            print("⚠️ Endpoint returned text instead of image bytes. Moving forward with text only.")
-    else:
-        print(f"⚠️ Image generation endpoint returned an error code: {response.status_code} - {response.text}")
+    if not image_saved:
+        print("⚠️ Model did not embed raw image bytes into the content block. Moving forward with text only.")
+        
 except Exception as e:
-    print(f"⚠️ Image request failed: {e}. Moving forward with text only.")
+    print(f"⚠️ Rebuilt image generation block encountered a system issue: {e}")
 
-# Save text caption output to folder
+# Save text caption output to folder directory
 with open("social_media_posts.txt", "w", encoding="utf-8") as file:
     file.write(output_text)
 
