@@ -49,10 +49,11 @@ design_task = Task(
     description=(
         "Using the research provided, create high-quality social media content.\n"
         "Generate:\n"
-        "1. An Instagram caption containing an intense hook, a short summary line, clean bullet points, and 4 specific hashtags.\n"
+        "1. An Instagram caption containing an intense hook, a short summary line, clean bullet points, and 4 specific hashtags. "
+        "CRITICAL: Keep the entire text extremely concise, punchy, and short. Under no circumstances must it exceed 1,000 characters total.\n"
         "2. A short, vivid description of a single cinematic image summarizing this news story (no text/words/letters in the image)."
     ),
-    expected_output="An Instagram caption and a visual summary description written in plain text.",
+    expected_output="An Instagram caption (strictly under 1,000 characters) and a visual summary description written in plain text.",
     agent=designer
 )
 
@@ -74,23 +75,18 @@ result = content_crew.kickoff()
 
 output_text = str(result)
 
-# 4. From-Scratch Rebuild: Official Native Interactions API Image Call (Bypasses all 404 blocks)
+# 4. Native Interactions API Image Call
 print("\n🎨 Initializing native Interactions API to generate the post graphic...\n")
 try:
-    # Initializes the clean Google GenAI Client with your existing environment variable key
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    
-    # Executes the strict native format required for modern Gemini 3.1 image generation
     interaction = client.models.generate_content(
         model="gemini-3.1-flash-image",
         contents=f"Create a high-quality, eye-catching, cinematic, 1:1 aspect ratio square social media graphic depicting: {output_text}. Photorealistic, vibrant color layout, ultra-detailed, strictly no text words or letters."
     )
     
-    # Scans the response candidates structure for the raw inline image parts
     image_saved = False
-    if interaction.candidates and interaction.candidates[0].content.parts:
-        for part in interaction.candidates[0].content.parts:
-            # Detects if Google returned an active native inline image block
+    if interaction.candidates and interaction.candidates.content.parts:
+        for part in interaction.candidates.content.parts:
             if part.inline_data and "image" in part.inline_data.mime_type:
                 image_bytes = base64.b64decode(part.inline_data.data)
                 with open("post_image.jpg", "wb") as f:
