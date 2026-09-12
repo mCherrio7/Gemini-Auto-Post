@@ -5,7 +5,7 @@ import base64
 from crewai import Agent, Crew, Process, Task, LLM
 from crewai_tools import SerperDevTool
 
-# 1. Setup tools and connect to the upgraded Gemini 3.6 engine
+# 1. Setup tools and connect to the upgraded Gemini 3.6 text engine
 search_tool = SerperDevTool()
 gemini_model = LLM(
     model="gemini/gemini-3.6-flash",
@@ -74,8 +74,8 @@ result = content_crew.kickoff()
 
 output_text = str(result)
 
-# 4. Developer-Tier Safe Image Generation (Using gemini-2.5-flash-image)
-print("\n🎨 Sending request to image generation engine for visual construction...\n")
+# 4. Upgraded Image Generation Engine (Using gemini-3.1-flash-image)
+print("\n🎨 Sending request to modern image generation engine for visual construction...\n")
 api_key = os.getenv("GEMINI_API_KEY")
 image_endpoint = f"https://googleapis.com"
 params = {"key": api_key}
@@ -98,9 +98,10 @@ try:
     if response.status_code == 200:
         response_data = response.json()
         
-        # Scans the modern content blocks for the inline binary image data
+        # Parse the modern content blocks for the inline binary image data
         image_saved = False
-        parts = response_data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+        candidates = response_data.get("candidates", [{}])
+        parts = candidates[0].get("content", {}).get("parts", [])
         
         for part in parts:
             if "inlineData" in part and "image/" in part["inlineData"].get("mimeType", ""):
