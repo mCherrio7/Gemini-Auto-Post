@@ -76,7 +76,8 @@ output_text = str(result)
 # 4. Direct Developer API Request to Imagen 3 (Guarantees Image File Creation)
 print("\n🎨 Sending direct developer request to Imagen 3 for visual construction...\n")
 api_key = os.getenv("GEMINI_API_KEY")
-imagen_url = f"https://googleapis.com{api_key}"
+imagen_url = f"https://googleapis.com"
+params = {"key": api_key}
 
 headers = {"Content-Type": "application/json"}
 payload = {
@@ -87,7 +88,7 @@ payload = {
 }
 
 try:
-    response = requests.post(imagen_url, headers=headers, data=json.dumps(payload))
+    response = requests.post(imagen_url, headers=headers, params=params, data=json.dumps(payload))
     if response.status_code == 200:
         import base64
         response_data = response.json()
