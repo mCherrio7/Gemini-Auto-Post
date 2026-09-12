@@ -80,7 +80,7 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 try:
     # Uses the developer-accessible multimodal endpoint to safely generate raw visual content blocks
     image_result = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.6-flash",
         contents=[
             f"Generate a high-quality, eye-catching, cinematic, 1:1 aspect ratio square graphic depicting: {output_text}. "
             f"Photorealistic, vibrant lighting, ultra-detailed, strictly no text, words, letters, or numbers inside the image."

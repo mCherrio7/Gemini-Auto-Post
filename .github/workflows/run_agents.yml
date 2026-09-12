@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout repository code
-      uses: actions/checkout@v4.3.0 # Upgraded to support modern Node 24 runners cleanly
+      uses: actions/checkout@v4 # Upgraded to support modern Node 24 runners cleanly
 
     - name: Install uv (Python Package Manager)
       uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # Locked to the official secure release hash
