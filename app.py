@@ -32,8 +32,8 @@ designer = Agent(
 
 publisher = Agent(
     role="Social Media Publisher",
-    goal="Package finalized media assets and coordinate secure broadcast to social media webhooks.",
-    backstory="A digital distributor responsible for compiling captions and delivering payloads to cloud bridges.",
+    goal="Take an expanded news update and shrink it down into a short description under 500 characters total.",
+    backstory="A strict editor who deletes long background paragraphs to make text perfect for Instagram limits.",
     llm=gemini_model,
     verbose=True
 )
@@ -48,21 +48,22 @@ research_task = Task(
 design_task = Task(
     description=(
         "Using the research provided, create high-quality social media content.\n"
-        "Generate exactly two elements labeled precisely like this:\n"
-        "=== CAPTION START ===\n"
-        "An intense hook line, a short summary, 3 bullet points, and 4 specific hashtags. Keep this section under 600 characters total.\n"
-        "=== CAPTION END ===\n"
-        "=== PROMPT START ===\n"
-        "A descriptive, detailed prompt for an AI image generator summarizing this news story (no words in the image).\n"
-        "=== PROMPT END ==="
+        "Generate:\n"
+        "1. An Instagram caption containing an intense hook, a short summary line, clean bullet points, and 4 specific hashtags.\n"
+        "2. A short, vivid description of a single cinematic image summarizing this news story (no text/words/letters in the image)."
     ),
-    expected_output="An Instagram caption and an image generator prompt written in plain text.",
+    expected_output="An Instagram caption and a visual summary description written in plain text.",
     agent=designer
 )
 
 publish_task = Task(
-    description="Package the final structured captions and prepare the asset pipeline payload for the external posting webhook.",
-    expected_output="A final structural status confirmation string detailing post readiness.",
+    description=(
+        "Look at the text provided by the previous agents. Extract ONLY the Instagram caption part.\n"
+        "Rewrite it to be extremely short, clean, and punchy.\n"
+        "CRITICAL RULE: The final output must be pure copy text, containing a total of fewer than 500 characters. "
+        "Do not write anything else. No technical notes, no explanations, no labels."
+    ),
+    expected_output="A single short copy caption under 500 characters with no labels or extra text.",
     agent=publisher
 )
 
@@ -76,18 +77,8 @@ content_crew = Crew(
 print("\n🚀 3 Agents are launching! Running the pipeline autonomously...\n")
 crew_output = content_crew.kickoff()
 
-# CRITICAL FIX: Extract ONLY the text from the Designer Agent's task output (removes the noise)
-raw_designer_text = content_crew.tasks[1].output.raw
-
-# Parse out the clean caption between the structural tags
-final_instagram_caption = "AI Update Today! 🔥"
-if "=== CAPTION START ===" in raw_designer_text:
-    try:
-        final_instagram_caption = raw_designer_text.split("=== CAPTION START ===")[1].split("=== CAPTION END ===")[0].strip()
-    except Exception:
-        final_instagram_caption = raw_designer_text[:800] # Fallback safety cutoff
-else:
-    final_instagram_caption = raw_designer_text[:800]
+# Extract ONLY the final output of the last task (the short caption)
+final_instagram_caption = content_crew.tasks[-1].output.raw.strip()
 
 # 4. Native Interactions API Image Call (Nano Banana)
 print("\n🎨 Initializing native Interactions API to generate the post graphic...\n")
@@ -95,7 +86,7 @@ try:
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     interaction = client.models.generate_content(
         model="gemini-3.1-flash-image",
-        contents=f"Create a high-quality, eye-catching, cinematic, 1:1 aspect ratio square social media graphic depicting: {raw_designer_text}. Photorealistic, vibrant color layout, ultra-detailed, strictly no text words or letters."
+        contents=f"Create a high-quality, eye-catching, cinematic, 1:1 aspect ratio square social media graphic depicting: {str(crew_output)}. Photorealistic, vibrant color layout, ultra-detailed, strictly no text words or letters."
     )
     
     image_saved = False
