@@ -10,11 +10,13 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write # CRITICAL: Grants the server secure admin permission to push updated images back to your repo
+      contents: write # CRITICAL FIX: Forces GitHub to grant the script permission to upload images
 
     steps:
     - name: Checkout repository code
       uses: actions/checkout@v4.2.2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }} # Explicitly uses the system's secure runtime pass
 
     - name: Install uv (Python Package Manager)
       uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
@@ -34,8 +36,8 @@ jobs:
 
     - name: Commit and Save Fresh Image to Repo
       run: |
-        git config --global user.name "GitHub Action Bot"
-        git config --global user.email "actions@github.com"
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@://github.com"
         git add post_image.jpg social_media_posts.txt
         git commit -m "Automated Sync: Save fresh daily AI news assets" || echo "No changes to commit"
         git push origin main
